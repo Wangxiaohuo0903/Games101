@@ -10,6 +10,15 @@
 #include <math.h>
 
 using namespace std;
+std::vector<Eigen::Vector2f> super_sample_step
+    {
+        {0.25,0.25},
+        {0.75,0.25},
+        {0.25,0.75},
+        {0.75,0.75},
+    };
+
+
 rst::pos_buf_id rst::rasterizer::load_positions(const std::vector<Eigen::Vector3f> &positions)
 {
     auto id = get_next_id();
@@ -63,6 +72,22 @@ static bool insideTriangle(int x, int y, const Vector3f* _v)
     return true;
     else  
     return false;
+
+}
+static float Cal_weight(int x, int y, const Vector3f* _v)
+{   
+    // TODO : Implement this function to check if the point (x, y) 
+    //is inside the triangle represented by _v[0], _v[1], _v[2]
+    float weight = 0;
+    if(insideTriangle(x-0.25,y+0.25,_v))
+        weight+=0.25;
+    if(insideTriangle(x-0.25,y-0.25,_v))
+        weight+=0.25;
+    if(insideTriangle(x+0.25,y-0.25,_v))
+        weight+=0.25;
+    if(insideTriangle(x+0.25,y+0.25,_v))
+        weight+=0.25;
+    return weight;
 
 }
 
@@ -135,6 +160,49 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     
     // TODO : Find out the bounding box of current triangle.
     // iterate through the pixel and find if the current pixel is inside the triangle
+    bool anti=true;
+    if(anti)
+    {
+for(int x=min_x;x<=max_x;x++){
+    for(int y=min_y;y<max_y;y++){
+int judge = 0;
+for (int i = 0; i < 4; i++)
+            {
+                if (insideTriangle(x + super_sample_step[i][0], y + super_sample_step[i][1], t.v))
+                {
+                    auto tup = computeBarycentric2D(x + super_sample_step[i][0], y + super_sample_step[i][1], t.v);
+                    float alpha;
+                    float beta;
+                    float gamma;
+                    std::tie(alpha, beta, gamma) = tup;
+                    float w_reciprocal = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                    float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                    z_interpolated *= w_reciprocal;
+                    if (super_depth_buf[get_super_index(x*2 + i % 2, y*2 + i / 2)] > z_interpolated)
+                    {
+                        judge = 1;
+                        // TODO : set the current pixel (use the set_pixel function) to the color of the triangle (use getColor function) if it should be painted.
+                        //深度存入缓存
+                        super_depth_buf[get_super_index(x*2 + i % 2, y*2 + i / 2)] = z_interpolated;
+                        //颜色存入缓存
+                        super_frame_buf[get_super_index(x*2 + i % 2, y*2 + i / 2)] = t.getColor();
+                    }
+                }
+            
+            if (judge)
+            //若像素的四个样本中有一个通过了深度测试，就需要对该像素进行着色，因为有一个通过就说明有颜色，就需要着色。
+            {
+                Vector3f point = { (float)x,(float)y,0 };
+                Vector3f color = (super_frame_buf[get_super_index(x*2 , y*2)]+ super_frame_buf[get_super_index(x*2+1, y*2)]+ super_frame_buf[get_super_index(x*2, y*2+1)]+ super_frame_buf[get_super_index(x*2+1, y*2+1)])/4;
+                //着色
+                set_pixel(point, color);
+            }
+        }
+
+}   
+}
+    }
+    else{
 for(int x=min_x;x<=max_x;x++){
     for(int y=min_y;y<max_y;y++){
         if(insideTriangle(x,y,t.v))
@@ -156,6 +224,8 @@ for(int x=min_x;x<=max_x;x++){
     }
 }   
 }
+    }
+
 }
 
 void rst::rasterizer::set_model(const Eigen::Matrix4f& m)
@@ -178,10 +248,13 @@ void rst::rasterizer::clear(rst::Buffers buff)
     if ((buff & rst::Buffers::Color) == rst::Buffers::Color)
     {
         std::fill(frame_buf.begin(), frame_buf.end(), Eigen::Vector3f{0, 0, 0});
+        std::fill(super_frame_buf.begin(), super_frame_buf.end(), Eigen::Vector3f{0, 0, 0});
+
     }
     if ((buff & rst::Buffers::Depth) == rst::Buffers::Depth)
     {
         std::fill(depth_buf.begin(), depth_buf.end(), std::numeric_limits<float>::infinity());
+        std::fill(super_depth_buf.begin(), super_depth_buf.end(), std::numeric_limits<float>::infinity());
     }
 }
 
@@ -189,13 +262,19 @@ rst::rasterizer::rasterizer(int w, int h) : width(w), height(h)
 {
     frame_buf.resize(w * h);
     depth_buf.resize(w * h);
+    super_frame_buf.resize(w * h * 4);
+    super_depth_buf.resize(w * h * 4);
+
 }
 
 int rst::rasterizer::get_index(int x, int y)
 {
     return (height-1-y)*width + x;
 }
-
+int rst::rasterizer::get_super_index(int x, int y)
+{
+    return (height*2 - 1 - y) * width*2 + x;
+}
 void rst::rasterizer::set_pixel(const Eigen::Vector3f& point, const Eigen::Vector3f& color)
 {
     //old index: auto ind = point.y() + point.x() * width;
