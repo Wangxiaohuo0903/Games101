@@ -1,6 +1,12 @@
 {
     "files.associations": {
         "iostream": "cpp",
-        "core": "cpp"
+        "core": "cpp",
+        "vector": "cpp",
+        "array": "cpp",
+        "algorithm": "cpp",
+        "chrono": "cpp",
+        "limits": "cpp",
+        "random": "cpp"
     }
 }

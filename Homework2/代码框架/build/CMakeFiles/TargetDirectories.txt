@@ -1,0 +1,3 @@
+/Users/xiaohuo/Documents/GAMES101/Homework2/代码框架/build/CMakeFiles/Rasterizer.dir
+/Users/xiaohuo/Documents/GAMES101/Homework2/代码框架/build/CMakeFiles/edit_cache.dir
+/Users/xiaohuo/Documents/GAMES101/Homework2/代码框架/build/CMakeFiles/rebuild_cache.dir
