@@ -304,8 +304,6 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload &payload)
 
     Eigen::Vector3f ln = Eigen::Vector3f(-dU, -dV, 1.0f);
 
-    point += (kn * normal * payload.texture->getColor(u, v).norm());
-
     normal = (TBN * ln).normalized();
     Eigen::Vector3f result_color = {0, 0, 0};
     result_color = normal;
