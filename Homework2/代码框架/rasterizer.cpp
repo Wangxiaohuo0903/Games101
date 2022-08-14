@@ -163,7 +163,7 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     bool anti=true;
     if(anti)
     {
-for(int x=min_x;x<=max_x;x++){
+        for(int x=min_x;x<=max_x;x++){
     for(int y=min_y;y<max_y;y++){
 int judge = 0;
 for (int i = 0; i < 4; i++)
