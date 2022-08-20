@@ -2,10 +2,8 @@
 #include <cassert>
 #include "BVH.hpp"
 
-BVHAccel::BVHAccel(std::vector<Object*> p, int maxPrimsInNode,
-                   SplitMethod splitMethod)
-    : maxPrimsInNode(std::min(255, maxPrimsInNode)), splitMethod(splitMethod),
-      primitives(std::move(p))
+BVHAccel::BVHAccel(std::vector<Object *> p, int maxPrimsInNode, SplitMethod splitMethod)
+    : maxPrimsInNode(std::min(255, maxPrimsInNode)), splitMethod(splitMethod), primitives(std::move(p))
 {
     time_t start, stop;
     time(&start);
@@ -20,14 +18,12 @@ BVHAccel::BVHAccel(std::vector<Object*> p, int maxPrimsInNode,
     int mins = ((int)diff / 60) - (hrs * 60);
     int secs = (int)diff - (hrs * 3600) - (mins * 60);
 
-    printf(
-        "\rBVH Generation complete: \nTime Taken: %i hrs, %i mins, %i secs\n\n",
-        hrs, mins, secs);
+    printf("\rBVH Generation complete: \nTime Taken: %i hrs, %i mins, %i secs\n\n", hrs, mins, secs);
 }
 
-BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
+BVHBuildNode *BVHAccel::recursiveBuild(std::vector<Object *> objects)
 {
-    BVHBuildNode* node = new BVHBuildNode();
+    BVHBuildNode *node = new BVHBuildNode();
 
     // Compute bounds of all primitives in BVH node
     Bounds3 bounds;
@@ -40,47 +36,38 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
         node->left = nullptr;
         node->right = nullptr;
         return node;
-    }
-    else if (objects.size() == 2) {
+    } else if (objects.size() == 2) {
         node->left = recursiveBuild(std::vector{objects[0]});
         node->right = recursiveBuild(std::vector{objects[1]});
 
         node->bounds = Union(node->left->bounds, node->right->bounds);
         return node;
-    }
-    else {
+    } else {
         Bounds3 centroidBounds;
         for (int i = 0; i < objects.size(); ++i)
-            centroidBounds =
-                Union(centroidBounds, objects[i]->getBounds().Centroid());
+            centroidBounds = Union(centroidBounds, objects[i]->getBounds().Centroid());
         int dim = centroidBounds.maxExtent();
         switch (dim) {
-        case 0:
-            std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
-                return f1->getBounds().Centroid().x <
-                       f2->getBounds().Centroid().x;
-            });
-            break;
-        case 1:
-            std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
-                return f1->getBounds().Centroid().y <
-                       f2->getBounds().Centroid().y;
-            });
-            break;
-        case 2:
-            std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
-                return f1->getBounds().Centroid().z <
-                       f2->getBounds().Centroid().z;
-            });
-            break;
+            case 0:
+                std::sort(objects.begin(), objects.end(),
+                          [](auto f1, auto f2) { return f1->getBounds().Centroid().x < f2->getBounds().Centroid().x; });
+                break;
+            case 1:
+                std::sort(objects.begin(), objects.end(),
+                          [](auto f1, auto f2) { return f1->getBounds().Centroid().y < f2->getBounds().Centroid().y; });
+                break;
+            case 2:
+                std::sort(objects.begin(), objects.end(),
+                          [](auto f1, auto f2) { return f1->getBounds().Centroid().z < f2->getBounds().Centroid().z; });
+                break;
         }
 
         auto beginning = objects.begin();
         auto middling = objects.begin() + (objects.size() / 2);
         auto ending = objects.end();
 
-        auto leftshapes = std::vector<Object*>(beginning, middling);
-        auto rightshapes = std::vector<Object*>(middling, ending);
+        auto leftshapes = std::vector<Object *>(beginning, middling);
+        auto rightshapes = std::vector<Object *>(middling, ending);
 
         assert(objects.size() == (leftshapes.size() + rightshapes.size()));
 
@@ -93,7 +80,7 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
     return node;
 }
 
-Intersection BVHAccel::Intersect(const Ray& ray) const
+Intersection BVHAccel::Intersect(const Ray &ray) const
 {
     Intersection isect;
     if (!root)
@@ -102,8 +89,25 @@ Intersection BVHAccel::Intersect(const Ray& ray) const
     return isect;
 }
 
-Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
+Intersection BVHAccel::getIntersection(BVHBuildNode *node, const Ray &ray) const
 {
+    Intersection inter;
+
+    Vector3f in(1 / ray.direction.x, 1 / ray.direction.y, 1 / ray.direction.z);
+    std::array<int, 3> dirIsNeg;
+    dirIsNeg[0] = ray.direction.x < 0;
+    dirIsNeg[1] = ray.direction.y < 0;
+    dirIsNeg[2] = ray.direction.z < 0;
+
     // TODO Traverse the BVH to find intersection
 
+    if (!node->bounds.IntersectP(ray, in, dirIsNeg))
+        return inter;
+    //有交点，且该点为叶子节点，去和三角形求交
+    if (node->left == nullptr && node->right == nullptr)
+        return node->object->getIntersection(ray);
+    //该点为中间节点，继续判断，并返回最近的包围盒交点
+    Intersection hit1 = getIntersection(node->left, ray);
+    Intersection hit2 = getIntersection(node->right, ray);
+    return hit1.distance < hit2.distance ? hit1 : hit2;
 }
