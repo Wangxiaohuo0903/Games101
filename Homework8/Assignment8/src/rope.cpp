@@ -13,23 +13,31 @@ namespace CGL {
     {
         // TODO (Part 1): Create a rope starting at `start`, ending at `end`, and containing `num_nodes` nodes.
 
-//        Comment-in this part when you implement the constructor
-//        for (auto &i : pinned_nodes) {
-//            masses[i]->pinned = true;
-//        }
+        for (int i = 0; i < num_nodes; i++) {
+            Vector2D current = start + i * (end - start) / (num_nodes - 1);
+            Mass *tmp = new Mass(current, node_mass, false);
+            masses.push_back(tmp);
+        }
+        for (int i = 0; i < num_nodes - 1; i++) {
+            Spring tmp = Spring(masses[i], masses[i + 1], k);
+            springs.push_back(tmp);
+        }
+        //        Comment-in this part when you implement the constructor
+        for (auto &i : pinned_nodes) {
+            masses[i]->pinned = true;
+        }
     }
 
     void Rope::simulateEuler(float delta_t, Vector2D gravity)
     {
-        for (auto &s : springs)
-        {
+        for (auto &s : springs) {
             // TODO (Part 2): Use Hooke's law to calculate the force on a node
+            Vector2D direction = s->m1.positon - s->m2.positon;
+            Vector2D
         }
 
-        for (auto &m : masses)
-        {
-            if (!m->pinned)
-            {
+        for (auto &m : masses) {
+            if (!m->pinned) {
                 // TODO (Part 2): Add the force due to gravity, then compute the new velocity and position
 
                 // TODO (Part 2): Add global damping
@@ -42,20 +50,17 @@ namespace CGL {
 
     void Rope::simulateVerlet(float delta_t, Vector2D gravity)
     {
-        for (auto &s : springs)
-        {
+        for (auto &s : springs) {
             // TODO (Part 3): Simulate one timestep of the rope using explicit Verlet （solving constraints)
         }
 
-        for (auto &m : masses)
-        {
-            if (!m->pinned)
-            {
+        for (auto &m : masses) {
+            if (!m->pinned) {
                 Vector2D temp_position = m->position;
                 // TODO (Part 3.1): Set the new position of the rope mass
-                
+
                 // TODO (Part 4): Add global Verlet damping
             }
         }
     }
-}
+}  // namespace CGL
