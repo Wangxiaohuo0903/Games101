@@ -9,6 +9,32 @@ const TGAColor red = TGAColor(255, 0, 0, 255);
 Model *model = NULL;
 const int width = 800;
 const int height = 800;
+const int depth  = 255;
+Vec3f camera(0,0,3);
+
+Vec3f m2v(Matrix m) {
+    return Vec3f(m[0][0]/m[3][0], m[1][0]/m[3][0], m[2][0]/m[3][0]);
+}
+Matrix v2m(Vec3f v) {
+    Matrix m(4, 1);
+    m[0][0] = v.x;
+    m[1][0] = v.y;
+    m[2][0] = v.z;
+    m[3][0] = 1.f;
+    return m;
+}
+Matrix viewport(int x, int y, int w, int h) {
+    Matrix m = Matrix::identity(4);
+    //第4列表示平移信息
+    m[0][3] = x+w/2.f;
+    m[1][3] = y+h/2.f;
+    m[2][3] = depth/2.f;
+    //对角线表示缩放信息
+    m[0][0] = w/2.f;
+    m[1][1] = h/2.f;
+    m[2][2] = depth/2.f;
+    return m;
+}
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
 {
     bool jud = true;
@@ -136,6 +162,11 @@ int main(int argc, char **argv)
     float *z_buffer = new float[width * height];
     for (int i = width * height; i--; z_buffer[i] = -std::numeric_limits<float>::max())
         ;
+    Matrix Projection = Matrix::identity(4);
+     //初始化视角矩阵
+    Matrix ViewPort   = viewport(width/8, height/8, width*3/4, height*3/4);
+    //投影矩阵[3][2]=-1/c，c为相机z坐标
+    Projection[3][2] = -1.f/camera.z;
     for (int i = 0; i < model->nfaces(); i++) {
         std::vector<int> face = model->face(i);
         std::vector<int> text = model->texture(i);
@@ -145,7 +176,10 @@ int main(int argc, char **argv)
         Vec3f t0 = model->tx_vert(text[0]);
         Vec3f t1 = model->tx_vert(text[1]);
         Vec3f t2 = model->tx_vert(text[2]);
-        
+        Vec3f screen_coords[3];
+        screen_coords[0] = m2v(ViewPort * Projection * v2m(v0));
+       screen_coords[1] = m2v(ViewPort * Projection * v2m(v1));
+       screen_coords[2] = m2v(ViewPort * Projection * v2m(v2));
         int tx0 = t0.x * (texture.get_width());
         int ty0 = t0.y * (texture.get_height());
         int tx1 = t1.x * (texture.get_width());
@@ -173,7 +207,7 @@ int main(int argc, char **argv)
         float intensity = n * light_dir;
         if (intensity > 0)
             //fill_triangle(x0,y0,x1,y1,x2,y2,image,intensity);
-            pixel_triangle(Pt, Px, image, z_buffer, texture,intensity);
+            pixel_triangle( screen_coords, Px, image, z_buffer, texture,intensity);
     }
 
     image.flip_vertically();  // i want to have the origin at the left bottom corner of the image
